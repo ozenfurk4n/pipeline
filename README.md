@@ -94,7 +94,7 @@ Adım 1: Prefect Sunucusunu Başlatın (Terminal 1)
 
 Bu terminal, projenin "patronu" veya "kontrol merkezi" olarak sürekli açık kalmalıdır.
 
-prefect orion start
+prefect server start
 
 Bu komut size http://127.0.0.1:4200 gibi bir adres verecektir. Bu adresi tarayıcınızda açarak Prefect arayüzüne erişin.
 
