@@ -80,7 +80,10 @@ def fetch_mahalle_geometry(mahalle_id: int) -> Optional[Dict[str, Any]]:
     """Belirtilen mahalle ID için geometri verisini çeker."""
     logger = get_run_logger()
     
-    # Önce ana geometri endpoint'ini dene
+    # YENİ VE GÜVENİLİR MANTIK:
+    # Mahalle geometrisini çekmek için daha güvenilir yöntemler kullanıyoruz
+    
+    # 1. Önce ana geometri endpoint'ini dene
     try:
         geom_data = get_json(URL_MAH_GEOM.format(mahalle_id=mahalle_id))
         if geom_data and "geometry" in geom_data:
@@ -88,13 +91,27 @@ def fetch_mahalle_geometry(mahalle_id: int) -> Optional[Dict[str, Any]]:
     except Exception as e:
         logger.warning(f"Mahalle {mahalle_id} için ana geometri endpoint'i başarısız: {e}")
     
-    # Alternatif olarak sınır endpoint'ini dene
+    # 2. Alternatif olarak sınır endpoint'ini dene
     try:
         bounds_data = get_json(URL_MAH_BOUNDS.format(mahalle_id=mahalle_id))
         if bounds_data and "geometry" in bounds_data:
             return bounds_data
     except Exception as e:
         logger.warning(f"Mahalle {mahalle_id} için sınır endpoint'i başarısız: {e}")
+    
+    # 3. Son çare olarak, mahalle listesi endpoint'inden geometri bilgisini almaya çalış
+    try:
+        # Mahalle listesi endpoint'i genellikle daha güvenilir
+        mahalle_liste_url = f"https://cbsapi.tkgm.gov.tr/megsiswebapi.v3.1/api/idariYapi/mahalleListe/{mahalle_id}"
+        mahalle_data = get_json(mahalle_liste_url)
+        
+        if mahalle_data and "features" in mahalle_data:
+            for feature in mahalle_data["features"]:
+                if feature.get("properties", {}).get("id") == mahalle_id:
+                    if "geometry" in feature:
+                        return feature
+    except Exception as e:
+        logger.warning(f"Mahalle {mahalle_id} için liste endpoint'i başarısız: {e}")
     
     return None
 
@@ -167,6 +184,10 @@ def fetch_tkgm_data_task(il_name: str, ilce_name: Optional[str] = None) -> Dict[
         for ic in ilceler:
             time.sleep(SLEEP_BETWEEN)
             j_mah = get_json(URL_MAH.format(ilce_id=ic["ilce_id"]))
+            
+            # İlçe bazında geometri verilerini toplu çek
+            ilce_geom_rows = []
+            
             for mf in j_mah.get("features", []) or []:
                 pp = mf.get("properties", {}) or {}
                 if "id" in pp and "text" in pp:
@@ -179,29 +200,49 @@ def fetch_tkgm_data_task(il_name: str, ilce_name: Optional[str] = None) -> Dict[
                         "mahalle_id": mahalle_id, "mahalle_ad": pp["text"],
                     })
                     
-                    # Geometri verisi çek
-                    try:
-                        logger.info(f"Mahalle {mahalle_id} için geometri çekiliyor...")
-                        geom_data = fetch_mahalle_geometry(mahalle_id)
-                        if geom_data:
-                            wkb_hex = convert_geometry_to_wkb(geom_data)
-                            if wkb_hex:
-                                geom_rows.append({
-                                    "ilce_id": int(ic["ilce_id"]),
-                                    "mahalle_id": mahalle_id,
-                                    "mahalle_ad": pp["text"],
-                                    "geom": wkb_hex
-                                })
-                                logger.info(f"Mahalle {mahalle_id} geometrisi başarıyla çekildi")
-                            else:
-                                logger.warning(f"Mahalle {mahalle_id} geometrisi WKB'ye çevrilemedi")
-                        else:
-                            logger.warning(f"Mahalle {mahalle_id} için geometri verisi bulunamadı")
-                    except Exception as e:
-                        logger.error(f"Mahalle {mahalle_id} geometrisi çekilirken hata: {e}")
+                    # Geometri verisi için hazırlık (henüz çekme)
+                    ilce_geom_rows.append({
+                        "ilce_id": int(ic["ilce_id"]),
+                        "mahalle_id": mahalle_id,
+                        "mahalle_ad": pp["text"]
+                    })
+            
+            # İlçe bazında toplu geometri çekimi
+            if ilce_geom_rows:
+                logger.info(f"İlçe {ic['ilce_ad']} için {len(ilce_geom_rows)} mahalle geometrisi çekiliyor...")
+                
+                # İlçe mahalle listesi endpoint'inden geometri bilgilerini al
+                try:
+                    ilce_mahalle_url = f"https://cbsapi.tkgm.gov.tr/megsiswebapi.v3.1/api/idariYapi/mahalleListe/{ic['ilce_id']}"
+                    ilce_mahalle_data = get_json(ilce_mahalle_url)
                     
-                    # Geometri çekme arasında kısa bekleme
-                    time.sleep(SLEEP_BETWEEN * 2)
+                    if ilce_mahalle_data and "features" in ilce_mahalle_data:
+                        for feature in ilce_mahalle_data["features"]:
+                            if "geometry" in feature and "properties" in feature:
+                                props = feature["properties"]
+                                mahalle_id = props.get("id") or props.get("mahalleId")
+                                
+                                if mahalle_id:
+                                    # Geometri verisini WKB'ye çevir
+                                    wkb_hex = convert_geometry_to_wkb(feature)
+                                    if wkb_hex:
+                                        # İlçe geometri listesinde bul ve güncelle
+                                        for geom_row in ilce_geom_rows:
+                                            if geom_row["mahalle_id"] == mahalle_id:
+                                                geom_row["geom"] = wkb_hex
+                                                break
+                    
+                    # Başarılı geometri çekimlerini ana listeye ekle
+                    for geom_row in ilce_geom_rows:
+                        if "geom" in geom_row:
+                            geom_rows.append(geom_row)
+                            logger.info(f"Mahalle {geom_row['mahalle_id']} geometrisi başarıyla çekildi")
+                        else:
+                            logger.warning(f"Mahalle {geom_row['mahalle_id']} için geometri verisi bulunamadı")
+                            
+                except Exception as e:
+                    logger.error(f"İlçe {ic['ilce_ad']} geometri çekimi sırasında hata: {e}")
+                    # Hata durumunda sadece ana veri ile devam et
 
         if not rows:
             raise RuntimeError(f"'{il_name}' için TKGM'den hiç mahalle verisi alınamadı.")
