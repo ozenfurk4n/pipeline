@@ -146,11 +146,23 @@ def convert_geometry_to_wkb(geometry_data: Dict[str, Any]) -> Optional[str]:
 # ==========================================================================
 
 @task(name="TKGM İdari Veri Çekme Görevi", retries=2, retry_delay_seconds=120)
-def fetch_tkgm_data_task(il_name: str, ilce_name: Optional[str] = None) -> Dict[str, Any]:
+def fetch_tkgm_data_task(
+    il_name: str, 
+    ilce_name: Optional[str] = None,
+    mahalle_id: Optional[int] = None,
+    ada: Optional[int] = None,
+    parsel: Optional[int] = None
+) -> Dict[str, Any]:
     logger = get_run_logger()
     log_id = None
     try:
-        log_id = log_task_start(script_name="fetch.py", params={"il_name": il_name})
+        log_id = log_task_start(script_name="fetch.py", params={
+            "il_name": il_name,
+            "ilce_name": ilce_name,
+            "mahalle_id": mahalle_id,
+            "ada": ada,
+            "parsel": parsel
+        })
         logger.info(f"'{il_name}' için TKGM veri çekme görevi başladı. Log ID: {log_id}")
 
         if DB.tkgm_has_il(il_name):

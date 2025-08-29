@@ -58,7 +58,13 @@ def tkgm_pipeline_flow(
         current_filters = filters.copy()
         current_filters["il"] = current_il
 
-        fetch_tkgm_data_task(il_name=current_il)
+        fetch_tkgm_data_task(
+            il_name=current_il, 
+            ilce_name=current_filters.get("ilce"),
+            mahalle_id=current_filters.get("mahalle_id"),
+            ada=current_filters.get("ada"),
+            parsel=current_filters.get("parsel")
+        )
         compare_for_il_task(il_name=current_il, filters=current_filters)
         process_unmatched_task(filters=current_filters)
         analyze_1n_task(filters=current_filters)
