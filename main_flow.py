@@ -36,7 +36,18 @@ def tkgm_pipeline_flow(
     DB.ensure_tables()
     logger.info("Tablo kontrolü tamamlandı.")
 
-    filters = {k: v for k, v in locals().items() if v is not None}
+    # Sadece pipeline parametrelerini al, logger gibi JSON'a çevrilemeyen nesneleri hariç tut
+    filters = {}
+    if il is not None:
+        filters["il"] = il
+    if ilce is not None:
+        filters["ilce"] = ilce
+    if mahalle_id is not None:
+        filters["mahalle_id"] = mahalle_id
+    if ada is not None:
+        filters["ada"] = ada
+    if parsel is not None:
+        filters["parsel"] = parsel
     logger.info(f"Akış aktif filtrelerle çalıştırılıyor: {filters}")
 
     iller_to_process: List[str] = []
