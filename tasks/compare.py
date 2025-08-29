@@ -20,7 +20,7 @@ import DB_postgre.DB_postgre as DB
 # --- GÜNCELLENEN BÖLÜM ---
 # Artık loglama fonksiyonlarını merkezi `utils` klasöründen alıyoruz.
 # Bu, kod tekrarını önler ve import hatalarını çözer.
-from utils.log_utils import log_task_start, log_task_success, log_task_error
+from utils.utils import log_task_start, log_task_success, log_task_error
 
 # ==========================================================================
 # === BÖLÜM 1: METİN NORMALLEŞTİRME VE YARDIMCI FONKSİYONLAR

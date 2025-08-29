@@ -98,3 +98,17 @@ def safe_int(x: Any) -> Optional[int]:
     s = str(x).strip().replace(",", "")
     if s.endswith(".0"): s = s[:-2]
     return int(s) if re.fullmatch(r"\d+", s) else None
+
+def coerce_int(x: Any) -> Optional[int]:
+    """Güvenli bir şekilde değeri integer'a çevirir."""
+    if x is None or (isinstance(x, float) and math.isnan(x)): 
+        return None
+    if isinstance(x, int): 
+        return x
+    s = str(x).strip().replace(",", "")
+    if s.endswith(".0"): 
+        s = s[:-2]
+    try:
+        return int(s) if re.fullmatch(r"\d+", s) else None
+    except (ValueError, TypeError):
+        return None

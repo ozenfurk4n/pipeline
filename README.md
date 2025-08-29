@@ -30,8 +30,7 @@ Proje, görevleri mantıksal olarak ayıran modüler bir yapıya sahiptir:
 │   └── vpn_manager.py      # Otomatik IP yönetimi (Tunnelblick)
 ├── vpn_configs/
 │   └── ... (.ovpn dosyaları buraya gelecek)
-├── main_flow.py            # Tüm görevleri yöneten ana Prefect akışı
-└── deploy.py               # Akışı Prefect sunucusuna kaydetmek için script
+└── main_flow.py            # Tüm görevleri yöneten ve hizmete alan ana akış
 
 Gerekli Kurulumlar (Ön Koşullar)
 Bu projeyi çalıştırabilmek için aşağıdaki yazılımların sisteminizde kurulu olması gerekmektedir.
@@ -87,36 +86,26 @@ utils/vpn_manager.py dosyasını açın.
 
 VPN_PASSWORD değişkeninin değerini, VPNBook sitesinden aldığınız güncel şifre ile değiştirin.
 
-Pipeline Nasıl Çalıştırılır?
-Pipeline, Prefect tarafından yönetilir ve çalıştırılması için 3 ayrı terminal penceresi gerekir.
+Pipeline Nasıl Çalıştırılır (Yeni .serve() Yöntemi)
+Pipeline'ı çalıştırmak artık çok daha basit ve sadece 2 terminal penceresi gerektiriyor.
 
 Adım 1: Prefect Sunucusunu Başlatın (Terminal 1)
 
-Bu terminal, projenin "patronu" veya "kontrol merkezi" olarak sürekli açık kalmalıdır.
+Bu terminal, projenin "kontrol merkezi" olarak sürekli açık kalmalıdır.
 
 prefect server start
 
 Bu komut size http://127.0.0.1:4200 gibi bir adres verecektir. Bu adresi tarayıcınızda açarak Prefect arayüzüne erişin.
 
-Adım 2: Akışı Prefect'e Kaydedin (Deployment)
+Adım 2: Akışı Hizmete Alın ve Çalışanı Başlatın (Terminal 2)
 
-Bu işlem, akışınızda bir değişiklik yaptığınızda veya ilk kurulumda sadece bir kez yapılır.
+Bu yeni yöntem, akışı Prefect'e kaydetme ve çalışanı (worker) başlatma adımlarını birleştirir. Bu terminal de sürekli açık kalmalıdır.
 
-python3 deploy.py
+python3 main_flow.py
 
-Bu komut, main_flow.py'deki akışı bulur ve Prefect sunucusuna kaydeder.
+Bu komutu çalıştırdığınızda, terminalde Deployment 'TKGM Pipeline Deployment (Served)' is being served... gibi bir mesaj göreceksiniz. Bu, akışınızın artık arayüzden komut almaya hazır olduğu anlamına gelir.
 
-Adım 3: Çalışanı (Worker) Başlatın (Terminal 2)
-
-Bu terminal, Prefect sunucusundan gelen iş emirlerini alıp çalıştıran "işçi" olarak sürekli açık kalmalıdır.
-
-# API adresini ayarlayın (sunucunun adresini belirtir)
-export PREFECT_API_URL="http://127.0.0.1:4200/api"
-
-# Worker'ı başlatın
-prefect worker start --pool 'default-agent-pool'
-
-Adım 4: Arayüzden Akışı Çalıştırın (Tarayıcı)
+Adım 3: Arayüzden Akışı Çalıştırın (Tarayıcı)
 
 Artık her şey hazır!
 
@@ -124,9 +113,8 @@ Tarayıcınızdaki Prefect arayüzüne gidin (http://127.0.0.1:4200).
 
 Sol menüden "Deployments" sayfasına tıklayın.
 
-"TKGM Pipeline - Python Deployment" satırının sağındaki "Run" butonuna tıklayın.
+"TKGM Pipeline Deployment (Served)" satırının sağındaki "Run" butonuna tıklayın.
 
 Karşınıza çıkan formda, pipeline'ı belirli bir il, ilçe, mahalle vb. için çalıştırmak üzere parametreleri doldurabilir veya tüm veritabanı için çalıştırmak üzere boş bırakabilirsiniz.
 
-Formu gönderdiğinizde, "Worker"ın çalıştığı terminalde logların akmaya başladığını ve arayüzden tüm süreci canlı olarak takip edebildiğinizi göreceksiniz.
-
+Formu gönderdiğinizde, main_flow.py'nin çalıştığı terminalde logların akmaya başladığını ve arayüzden tüm süreci canlı olarak takip edebildiğinizi göreceksiniz.

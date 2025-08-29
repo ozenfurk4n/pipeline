@@ -9,7 +9,7 @@ from prefect import task, get_run_logger
 
 # Kendi veritabanı erişim modülümüzü ve loglama fonksiyonlarımızı import ediyoruz.
 import DB_postgre.DB_postgre as DB
-from tasks.compare import log_task_start, log_task_success, log_task_error, tr_upper_ascii
+from utils.utils import log_task_start, log_task_success, log_task_error, tr_upper_ascii
 
 # --- YENİ IMPORT ---
 # Otomatik IP değiştirme fonksiyonunu import ediyoruz.

@@ -17,27 +17,15 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import DB_postgre.DB_postgre as DB
 # Merkezi yardımcı modülümüzü import ediyoruz.
-from utils.log_utils import (
-    log_task_start, log_task_success, log_task_error
+from utils.utils import (
+    log_task_start, log_task_success, log_task_error, coerce_int
 )
 
 # ==========================================================================
 # === BÖLÜM 1: YARDIMCI FONKSİYONLAR
 # ==========================================================================
 
-def coerce_int(x: Any) -> Optional[int]:
-    """Güvenli bir şekilde değeri integer'a çevirir."""
-    if x is None or (isinstance(x, float) and math.isnan(x)): 
-        return None
-    if isinstance(x, int): 
-        return x
-    s = str(x).strip().replace(",", "")
-    if s.endswith(".0"): 
-        s = s[:-2]
-    try:
-        return int(s) if re.fullmatch(r"\d+", s) else None
-    except (ValueError, TypeError):
-        return None
+# coerce_int fonksiyonu artık utils.utils modülünden import ediliyor
 
 # ==========================================================================
 # === BÖLÜM 2: API İLETİŞİMİ VE ÖZYİNELEMELİ TAKİP
