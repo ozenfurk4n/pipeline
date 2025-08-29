@@ -10,6 +10,7 @@ odaklanır.
 
 import pandas as pd
 from sqlalchemy import create_engine, text
+from prefect import get_run_logger
 
 # ==========================================================================
 # === BÖLÜM 1: KONFİGÜRASYON
