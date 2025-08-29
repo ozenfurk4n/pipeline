@@ -11,6 +11,7 @@ odaklanır.
 import pandas as pd
 from sqlalchemy import create_engine, text
 from prefect import get_run_logger
+from sqlalchemy import MetaData, Table, insert
 
 # ==========================================================================
 # === BÖLÜM 1: KONFİGÜRASYON
@@ -20,7 +21,7 @@ from prefect import get_run_logger
 # ==========================================================================
 
 # --- BAĞLANTI AYARI (tek yer) ---
-DB_URL = "postgresql+psycopg2://postgres:1234@localhost:5432/pipeline"
+DB_URL = "postgresql+psycopg2://postgres:prolegal2314++8.@localhost:5432/pipeline"
 SCHEMA = "public"
 
 # --- TABLO ADLARI ---
@@ -189,23 +190,37 @@ def insert_mahalle_geometries(df: pd.DataFrame) -> None:
     """Mahalle geometri verilerini `tkgm_mahalle_geom` tablosuna yazar."""
     if df.empty: return
     eng = engine()
-    
-    # Geometri verilerini hazırla
-    geom_data = []
-    for _, row in df.iterrows():
-        geom_data.append({
-            "ilce_id": row["ilce_id"],
-            "mahalle_id": row["mahalle_id"],
-            "mahalle_ad": row["mahalle_ad"],
-            "geom": f"SRID=4326;{row['geom']}"  # PostGIS SRID ekle
-        })
-    
-    # Veritabanına yaz
-    df_geom = pd.DataFrame(geom_data)
-    df_geom.to_sql(T_MAH_GEOM.split(".")[-1].strip('"'), eng, schema=SCHEMA, if_exists="append", index=False)
-    
     logger = get_run_logger()
-    logger.info(f"{len(df_geom)} adet mahalle geometrisi başarıyla yüklendi.")
+    
+    try:
+        # Her satır için UPSERT yap
+        with eng.begin() as con:
+            for _, row in df.iterrows():
+                # Geometri verisini hazırla
+                geom_data = {
+                    "ilce_id": row["ilce_id"],
+                    "mahalle_id": row["mahalle_id"],
+                    "mahalle_ad": row["mahalle_ad"],
+                    "geom": f"SRID=4326;{row['geom']}"  # PostGIS SRID ekle
+                }
+                
+                # UPSERT sorgusu - varsa güncelle, yoksa ekle
+                upsert_sql = text(f"""
+                    INSERT INTO {T_MAH_GEOM} (ilce_id, mahalle_id, mahalle_ad, geom)
+                    VALUES (:ilce_id, :mahalle_id, :mahalle_ad, ST_Multi(ST_SetSRID(ST_GeomFromGeoJSON(:geom), 4326)))
+                    ON CONFLICT (ilce_id, mahalle_id) 
+                    DO UPDATE SET 
+                        mahalle_ad = EXCLUDED.mahalle_ad,
+                        geom = EXCLUDED.geom
+                """)
+                
+                con.execute(upsert_sql, geom_data)
+        
+        logger.info(f"{len(df)} adet mahalle geometrisi başarıyla yüklendi/güncellendi.")
+        
+    except Exception as e:
+        logger.error(f"Geometri verileri yazılırken hata: {e}")
+        raise
 
 def insert_matches(df: pd.DataFrame) -> None:
     """`compare.py`'nin bulduğu eşleşen kayıtları tabloya yazar."""

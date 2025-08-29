@@ -86,16 +86,18 @@ def fetch_mahalle_geometry(mahalle_id: int) -> Optional[Dict[str, Any]]:
     # 1. Önce ana geometri endpoint'ini dene
     try:
         geom_data = get_json(URL_MAH_GEOM.format(mahalle_id=mahalle_id))
-        if geom_data and "geometry" in geom_data:
-            return geom_data
+        if geom_data and isinstance(geom_data, dict) and "geometry" in geom_data:
+            if geom_data["geometry"]:  # Geometri verisi var mı kontrol et
+                return geom_data
     except Exception as e:
         logger.warning(f"Mahalle {mahalle_id} için ana geometri endpoint'i başarısız: {e}")
     
     # 2. Alternatif olarak sınır endpoint'ini dene
     try:
         bounds_data = get_json(URL_MAH_BOUNDS.format(mahalle_id=mahalle_id))
-        if bounds_data and "geometry" in bounds_data:
-            return bounds_data
+        if bounds_data and isinstance(bounds_data, dict) and "geometry" in bounds_data:
+            if bounds_data["geometry"]:  # Geometri verisi var mı kontrol et
+                return bounds_data
     except Exception as e:
         logger.warning(f"Mahalle {mahalle_id} için sınır endpoint'i başarısız: {e}")
     
@@ -105,14 +107,17 @@ def fetch_mahalle_geometry(mahalle_id: int) -> Optional[Dict[str, Any]]:
         mahalle_liste_url = f"https://cbsapi.tkgm.gov.tr/megsiswebapi.v3.1/api/idariYapi/mahalleListe/{mahalle_id}"
         mahalle_data = get_json(mahalle_liste_url)
         
-        if mahalle_data and "features" in mahalle_data:
+        if mahalle_data and isinstance(mahalle_data, dict) and "features" in mahalle_data:
             for feature in mahalle_data["features"]:
-                if feature.get("properties", {}).get("id") == mahalle_id:
-                    if "geometry" in feature:
-                        return feature
+                if feature and isinstance(feature, dict):
+                    props = feature.get("properties", {})
+                    if props and props.get("id") == mahalle_id:
+                        if "geometry" in feature and feature["geometry"]:
+                            return feature
     except Exception as e:
         logger.warning(f"Mahalle {mahalle_id} için liste endpoint'i başarısız: {e}")
     
+    logger.warning(f"Mahalle {mahalle_id} için hiçbir endpoint'ten geometri verisi alınamadı")
     return None
 
 def convert_geometry_to_wkb(geometry_data: Dict[str, Any]) -> Optional[str]:
@@ -120,6 +125,18 @@ def convert_geometry_to_wkb(geometry_data: Dict[str, Any]) -> Optional[str]:
     try:
         from shapely.geometry import shape
         from shapely.wkb import dumps
+        
+        # None kontrolü ekle
+        if not geometry_data or not isinstance(geometry_data, dict):
+            logger = get_run_logger()
+            logger.warning("Geometri verisi None veya geçersiz format")
+            return None
+            
+        # Geometry kontrolü ekle
+        if "geometry" not in geometry_data or not geometry_data["geometry"]:
+            logger = get_run_logger()
+            logger.warning("Geometri verisinde 'geometry' alanı bulunamadı")
+            return None
         
         # GeoJSON'dan Shapely geometrisi oluştur
         geom = shape(geometry_data["geometry"])
