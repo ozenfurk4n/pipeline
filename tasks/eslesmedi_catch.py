@@ -119,7 +119,12 @@ def process_unmatched_task(filters: Dict[str, Any]) -> Dict[str, Any]:
         log_id = log_task_start(script_name="eslesmedi_catch.py", params=filters)
         logger.info(f"Eşleşmeyenleri kurtarma görevi başladı. Filtreler: {filters}. Log ID: {log_id}")
 
-        df_miss = DB.load_unmatched(filters)
+        # filters sözlüğünden il adını çıkar
+        il_name = filters.get("il")
+        if not il_name:
+            raise ValueError("Filtrelerde 'il' parametresi bulunamadı.")
+        
+        df_miss = DB.load_unmatched_for_il(il_name)
         if df_miss.empty:
             success_message = "Filtrelerle eşleşen işlenecek kayıt bulunamadı."
             log_task_success(log_id, success_message)
