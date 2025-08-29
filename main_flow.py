@@ -59,7 +59,7 @@ def tkgm_pipeline_flow(
         current_filters["il"] = current_il
 
         fetch_tkgm_data_task(il_name=current_il)
-        compare_for_il_task(filters=current_filters)
+        compare_for_il_task(il_name=current_il, filters=current_filters)
         process_unmatched_task(filters=current_filters)
         analyze_1n_task(filters=current_filters)
         
